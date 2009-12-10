@@ -5,6 +5,10 @@
 		Definition:
 	-------------------------------------------------------------------------*/
 		
+		protected $initialized = false;
+		protected $section = null;
+		protected $fields = null;
+		
 		public function about() {
 			return array(
 				'name'			=> 'Audit Trail',
@@ -34,13 +38,62 @@
 			);
 		}
 		
-		/*
-		$this->_Parent->ExtensionManager->notifyMembers('EntryPostCreate', '/publish/new/', array('section' => $section, 'entry' => $entry, 'fields' => $fields));
-		*/
-		
-		/*
-		$this->_Parent->ExtensionManager->notifyMembers('EntryPostEdit', '/publish/edit/', array('section' => $section, 'entry' => $entry, 'fields' => $fields));
-		*/
+		public function initialize($context = null) {
+			if ($this->initialized) return true;
+			
+			$this->initialized = true;
+			$sm = new SectionManager(Administration::instance());
+			
+			$this->section = $this->_Parent->Database->fetchVar('id', 0, "
+				SELECT
+					s.id
+				FROM
+					`tbl_sections` AS s
+				WHERE
+					2 = (
+						SELECT
+							count(*)
+						FROM
+							`tbl_fields` AS f
+						WHERE
+							f.parent_section = s.id
+							AND f.type IN (
+								'auditdump',
+								'auditentry'
+							)
+					)
+				LIMIT 1
+			");
+			
+			if (is_null($this->section)) return false;
+			
+			$fields = $this->_Parent->Database->fetch(sprintf(
+				"
+					SELECT
+						f.type, f.id, f.element_name
+					FROM
+						`tbl_fields` AS f
+					WHERE
+						f.parent_section = '%s'
+						AND f.type IN (
+							'auditdump',
+							'auditentry'
+						)
+				",
+				$this->section
+			));
+			
+			foreach ($fields as $field) {
+				$this->fields[$field['type']] = (object)array(
+					'id'		=> $field['id'],
+					'handle'	=> $field['element_name']
+				);
+			}
+			
+			if (is_null($this->fields)) return false;
+			
+			return true;
+		}
 		
 	/*-------------------------------------------------------------------------
 		Utilities:
@@ -52,23 +105,64 @@
 			if (!$page or $this->addedPublishHeaders) return;
 			
 			$page->addStylesheetToHead(URL . '/extensions/audittrail/assets/publish.css', 'screen', 3112401);
-			$page->addScriptToHead(URL . '/extensions/audittrail/assets/publish.js', 3112401);
 			
 			$this->addedPublishHeaders = true;
 		}
 		
-		public function getSection($handle) {
+		public function getSection($id) {
 			$sm = new SectionManager(Administration::instance());
-			$id = $sm->fetchIDFromHandle($handle);
 			
 			return $sm->fetch($id);
 		}
 		
 		public function getAuditSection() {
-			// TODO: Pull section handle from configuration.
-			$handle = 'audit-trail';
+			return $this->getSection($this->section);
+		}
+		
+	/*-------------------------------------------------------------------------
+		Restoring:
+	-------------------------------------------------------------------------*/
+		
+		public function restore($audit_id) {
+			header('content-type: text/plain');
 			
-			return $this->getSection($handle);
+			if (!$this->initialize()) return false;
+			
+			$admin = Administration::instance();
+			$em = new EntryManager($admin);
+			$section = $this->getAuditSection();
+			
+			$audit = @array_shift($em->fetch($audit_id));
+			
+			if (is_null($audit)) return false;
+			
+			$data = $audit->getData($this->fields['auditdump']->id);
+			$entry_id = $audit->getData($this->fields['auditentry']->id);
+			
+			if (
+				is_null($data) or is_null($data['value'])
+				or is_null($entry_id) or is_null($entry_id['source_entry'])
+				or is_null($entry_id['source_section'])
+			) return false;
+			
+			$entry = @array_shift($em->fetch($entry_id['source_entry']));
+			
+			// Entry doesn't exist, create a new one:
+			if (is_null($entry)) {
+				$entry = $em->create();
+				$entry->set('section_id', $entry_id['source_section']);
+				$entry->set('author_id', $admin->Author->get('id'));
+				$entry->set('creation_date', DateTimeObj::get('Y-m-d H:i:s'));
+				$entry->set('creation_date_gmt', DateTimeObj::getGMT('Y-m-d H:i:s'));
+			}
+			
+			$data = eval(sprintf('return %s;', $data['value']));
+			
+			foreach ($data as $field_id => $field_data) {
+				$entry->setData($field_id, $field_data);
+			}
+			
+			$entry->commit();
 		}
 		
 	/*-------------------------------------------------------------------------
@@ -84,13 +178,18 @@
 		}
 		
 		public function log($type, $entry) {
-			header('content-type: text/plain');
+			if (!$this->initialize()) return false;
 			
-			$em = new EntryManager(Administration::instance());
+			$admin = Administration::instance();
+			$em = new EntryManager($admin);
 			$section = $this->getAuditSection();
 			$fields = array(
 				'created'	=> 'now',
-				'content'	=> var_export($entry->getData(), true),
+				'dump'		=> var_export($entry->getData(), true),
+				'entry'		=> array(
+					'source_entry'		=> $entry->get('id'),
+					'source_section'	=> $entry->get('section_id')
+				),
 				'type'		=> $type
 			);
 			
@@ -99,7 +198,7 @@
 			
 			$audit = $em->create();
 			$audit->set('section_id', $section->get('id'));
-			$audit->set('author_id', $entry->get('author_id'));
+			$audit->set('author_id', $admin->Author->get('id'));
 			$audit->set('creation_date', DateTimeObj::get('Y-m-d H:i:s'));
 			$audit->set('creation_date_gmt', DateTimeObj::getGMT('Y-m-d H:i:s'));
 			
