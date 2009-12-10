@@ -94,6 +94,25 @@
 		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
 			$status = self::__OK__;
 			
+			// Entry data cannot be changed:
+			$value = $this->_engine->Database->fetchVar('value', 0, sprintf(
+				"
+					SELECT
+						f.value
+					FROM
+						`tbl_entries_data_%s` AS f
+					WHERE
+						f.entry_id = '%s'
+					LIMIT 1
+				",
+				$this->get('id'),
+				$entry_id
+			));
+			
+			if (!is_null($value)) {
+				$data = $value;
+			}
+			
 			return array(
 				'value'		=> $data
 			);
