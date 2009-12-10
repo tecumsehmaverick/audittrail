@@ -46,7 +46,7 @@
 		}
 		
 		public function canFilter() {
-			return false;
+			return true;
 		}
 		
 		public function canPrePopulate() {
@@ -54,7 +54,7 @@
 		}
 		
 		public function isSortable() {
-			return false;
+			return true;
 		}
 		
 	/*-------------------------------------------------------------------------
@@ -184,6 +184,99 @@
 			}
 			
 			return $value;
+		}
+		
+	/*-------------------------------------------------------------------------
+		Filtering:
+	-------------------------------------------------------------------------*/
+		
+		public function displayDatasourceFilterPanel(&$wrapper, $data = null, $errors = null, $prefix = null, $postfix = null) {
+			$field_id = $this->get('id');
+			
+			$wrapper->appendChild(new XMLElement(
+				'h4', sprintf(
+					'%s <i>%s</i>',
+					$this->get('label'),
+					$this->name()
+				)
+			));
+			
+			$prefix = ($prefix ? "[{$prefix}]" : '');
+			$postfix = ($postfix ? "[{$postfix}]" : '');
+			
+			$label = Widget::Label('Value');
+			$label->appendChild(Widget::Input(
+				"fields[filter]{$prefix}[{$field_id}]{$postfix}",
+				($data ? General::sanitize($data) : null)
+			));	
+			$wrapper->appendChild($label);
+			
+			$help = new XMLElement('p');
+			$help->setAttribute('class', 'help');
+			$help->setValue(__('To do a negative filter, prefix the value with <code>not:</code>.'));
+			
+			$wrapper->appendChild($help);
+		}
+		
+		public function buildDSRetrivalSQL($data, &$joins, &$where, $andOperation = false) {
+			$field_id = $this->get('id');
+			$method_not = false;
+			
+			// Find mode:
+			if (preg_match('/^(not):/', $data[0], $match)) {
+				$data[0] = trim(substr($data[0], strlen(next($match)) + 1));
+				$name = 'method_' . current($match); $$name = true;
+			}
+			
+			if ($andOperation) {
+				$match = ($method_not ? '!=' : '=');
+				
+				foreach ($data as $value) {
+					$this->_key++;
+					$value = $this->cleanValue($value);
+					$joins .= "
+						LEFT JOIN
+							`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
+							ON (e.id = t{$field_id}_{$this->_key}.entry_id)
+					";
+					$where .= "
+						AND t{$field_id}_{$this->_key}.source_entry {$match} '{$value}'
+					";
+				}
+				
+			} else {
+				$match = ($method_not ? 'NOT IN' : 'IN');
+				
+				if (!is_array($data)) $data = array($data);
+				
+				foreach ($data as &$value) {
+					$value = $this->cleanValue($value);
+				}
+				
+				$this->_key++;
+				$data = implode("', '", $data);
+				$joins .= "
+					LEFT JOIN
+						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
+						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
+				";
+				$where .= "
+					AND t{$field_id}_{$this->_key}.source_entry {$match} ('{$data}')
+				";
+			}
+
+			return true;
+		}
+		
+	/*-------------------------------------------------------------------------
+		Sorting:
+	-------------------------------------------------------------------------*/
+		
+		public function buildSortingSQL(&$joins, &$where, &$sort, $order = 'ASC') {
+			$field_id = $this->get('id');
+			
+			$joins .= "LEFT OUTER JOIN `tbl_entries_data_{$field_id}` AS ed ON (e.id = ed.entry_id) ";
+			$sort = 'ORDER BY ' . (strtolower($order) == 'random' ? 'RAND()' : "ed.source_entry {$order}");
 		}
 	}
 	
