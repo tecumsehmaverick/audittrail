@@ -58,6 +58,16 @@
 		}
 		
 	/*-------------------------------------------------------------------------
+		Settings:
+	-------------------------------------------------------------------------*/
+		
+		public function displaySettingsPanel(&$wrapper, $errors = null, $append_before = null, $append_after = null) {
+			parent::displaySettingsPanel($wrapper, $errors);
+			
+			$this->appendShowColumnCheckbox($wrapper);
+		}
+		
+	/*-------------------------------------------------------------------------
 		Publish:
 	-------------------------------------------------------------------------*/
 		
@@ -145,6 +155,35 @@
 				$this->get('element_name'),
 				General::sanitize($value)
 			));
+		}
+		
+		public function prepareTableValue($data, XMLElement $link = null) {
+			$em = new EntryManager(Administration::instance()); $value = '';
+			$max_length = $this->_engine->Configuration->get('cell_truncation_length', 'symphony');
+			$max_length = ($max_length ? $max_length : 75);
+			
+			$entry_id = $data['source_entry'];
+			$entry = @array_shift($em->fetch($entry_id));
+			
+			if ($entry instanceof Entry) {
+				$value = $this->_driver->getEntryValue($entry);
+				
+				if (!$link instanceof XMLElement) {
+					$link = $this->_driver->getEntryLink($entry);
+				}
+			}
+			
+			$value = (strlen($value) <= $max_length ? $value : substr($value, 0, $max_length) . '...');
+			
+			if ($value == '') $value = __('None');
+			
+			if ($link) {
+				$link->setValue($value . ' &#x2192;');
+				
+				return $link->generate();
+			}
+			
+			return $value;
 		}
 	}
 	

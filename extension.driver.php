@@ -119,6 +119,42 @@
 			return $this->getSection($this->section);
 		}
 		
+		public function getEntryLink(Entry $entry) {
+			$section = $this->getSection($entry->get('section_id'));
+			
+			$link = new XMLElement('a');
+			$link->setAttribute('href', sprintf(
+				'%s/symphony/publish/%s/edit/%d/',
+				URL,
+				$section->get('handle'),
+				$entry->get('id')
+			));
+			
+			return $link;
+		}
+		
+		public function getEntryValue(Entry $entry) {
+			if (!$this->initialize()) return '';
+			
+			$section = $this->getSection($entry->get('section_id'));
+			$field = @array_shift($section->fetchVisibleColumns());
+			$span = new XMLElement('span');
+			
+			if (is_null($field)) return '';
+			
+			$data = $entry->getData($field->get('id'));
+			
+			if (empty($data)) return '';
+			
+			$data = $field->prepareTableValue($data, $span);
+			
+			if ($data instanceof XMLElement) {
+				$data = $data->generate();
+			}
+			
+			return strip_tags($data);
+		}
+		
 	/*-------------------------------------------------------------------------
 		Restoring:
 	-------------------------------------------------------------------------*/
@@ -198,6 +234,7 @@
 			$em = new EntryManager($admin);
 			$section = $this->getAuditSection();
 			$fields = array(
+				'author'	=> $admin->Author->get('id'),
 				'created'	=> 'now',
 				'dump'		=> var_export($entry->getData(), true),
 				'entry'		=> array(
