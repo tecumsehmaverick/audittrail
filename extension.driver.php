@@ -159,6 +159,7 @@
 				$this->_Parent->Database->insert($entry->_fields, 'tbl_entries');
 			}
 			
+			// Save the entry:
 			$data = eval(sprintf('return %s;', $data['value']));
 			
 			foreach ($data as $field_id => $field_data) {
@@ -166,6 +167,16 @@
 			}
 			
 			$entry->commit();
+			
+			// Redirect to the entry:
+			$section = $this->getSection($entry->get('section_id'));
+			
+		   	redirect(sprintf(
+				'%s/symphony/publish/%s/edit/%d/',
+				URL,
+				$section->get('handle'),
+				$entry->get('id')
+			));
 		}
 		
 	/*-------------------------------------------------------------------------

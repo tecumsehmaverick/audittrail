@@ -63,15 +63,8 @@
 		
 		public function displayPublishPanel(&$wrapper, $data = null, $error = null, $prefix = null, $postfix = null, $entry_id = null) {
 			$this->_driver->addPublishHeaders($this->_engine->Page);
+			$em = new EntryManager(Administration::instance());
 			$element_name = $this->get('element_name');
-			
-			if (empty($data)) {
-				$data = __('No audited data to show.');
-			}
-			
-			if (is_array($data)) {
-				$data = array_shift($data);
-			}
 			
 			$label = new XMLElement('div');
 			$label->setAttribute('class', 'label');
@@ -81,7 +74,23 @@
 			$button->setAttribute('name', "fields{$prefix}[$element_name]{$postfix}");
 			$button->setAttribute('value', 'restore');
 			$button->setAttribute('type', 'submit');
-			$button->setValue(__('Restore Entry'));
+			
+			if (@is_null($data['source_entry']) or @is_null($data['source_section'])) {
+				$button->setValue(__('Undelete Entry'));
+				$button->setAttribute('disabled', 'disabled');
+			}
+			
+			else {
+				$entry = @array_shift($em->fetch($data['source_entry']));
+				
+				if (is_null($entry)) {
+					$button->setValue(__('Undelete Entry'));
+				}
+				
+				else {
+					$button->setValue(__('Restore Entry'));
+				}
+			}
 			
 			$span->appendChild($button);
 			$label->appendChild($span);
