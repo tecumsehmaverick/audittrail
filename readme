@@ -1,0 +1,10 @@
+Audit Trail
+-------------------------------------------------------------------------------
+
+Provides an audit log of any changed entries, with the ability to restore
+an entry to a particular state, or restore an entry that was deleted.
+
+Version: 1.0.0
+Author: Rowan Lewis <me@rowanlewis.com>
+Build Date: 10 December 2009
+Requirements: Symphony 2.0.6
