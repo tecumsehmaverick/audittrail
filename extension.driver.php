@@ -150,10 +150,13 @@
 			// Entry doesn't exist, create a new one:
 			if (is_null($entry)) {
 				$entry = $em->create();
+				$entry->set('id', $entry_id['source_entry']);
 				$entry->set('section_id', $entry_id['source_section']);
 				$entry->set('author_id', $admin->Author->get('id'));
 				$entry->set('creation_date', DateTimeObj::get('Y-m-d H:i:s'));
 				$entry->set('creation_date_gmt', DateTimeObj::getGMT('Y-m-d H:i:s'));
+				
+				$this->_Parent->Database->insert($entry->_fields, 'tbl_entries');
 			}
 			
 			$data = eval(sprintf('return %s;', $data['value']));
