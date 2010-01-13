@@ -196,7 +196,7 @@
 			}
 			
 			// Save the entry:
-			$data = eval(sprintf('return %s;', $data['value']));
+			$data = unserialize($data['value']);
 			
 			foreach ($data as $field_id => $field_data) {
 				$entry->setData($field_id, $field_data);
@@ -236,7 +236,7 @@
 			$fields = array(
 				'author'	=> $admin->Author->get('id'),
 				'created'	=> 'now',
-				'dump'		=> var_export($entry->getData(), true),
+				'dump'		=> serialize($entry->getData()),
 				'entry'		=> array(
 					'source_entry'		=> $entry->get('id'),
 					'source_section'	=> $entry->get('section_id')
