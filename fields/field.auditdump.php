@@ -76,7 +76,7 @@
 			$pre = new XMLElement('pre');
 			
 			$pre->appendChild(new XMLElement(
-				'code', General::sanitize(unserialize($data))
+				'code', General::sanitize(var_export(unserialize($data), true))
 			));
 			
 			$label->appendChild($pre);
@@ -126,7 +126,7 @@
 		public function appendFormattedElement(&$wrapper, $data, $encode = false, $mode = null) {
 			$wrapper->appendChild(new XMLElement(
 				$this->get('element_name'),
-				General::sanitize(unserialize($value))
+				General::sanitize(var_export(unserialize($data), true))
 			));
 		}
 	}
