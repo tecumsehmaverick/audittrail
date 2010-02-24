@@ -160,8 +160,6 @@
 	-------------------------------------------------------------------------*/
 		
 		public function restore($audit_id) {
-			header('content-type: text/plain');
-			
 			if (!$this->initialize()) return false;
 			
 			$admin = Administration::instance();
@@ -233,8 +231,9 @@
 			$admin = Administration::instance();
 			$em = new EntryManager($admin);
 			$section = $this->getAuditSection();
+			
 			$fields = array(
-				'author'	=> $admin->Author->get('id'),
+				'author'	=> $entry->get('author_id'),
 				'created'	=> 'now',
 				'dump'		=> serialize($entry->getData()),
 				'entry'		=> array(
@@ -249,7 +248,7 @@
 			
 			$audit = $em->create();
 			$audit->set('section_id', $section->get('id'));
-			$audit->set('author_id', $admin->Author->get('id'));
+			$audit->set('author_id', $entry->get('author_id'));
 			$audit->set('creation_date', DateTimeObj::get('Y-m-d H:i:s'));
 			$audit->set('creation_date_gmt', DateTimeObj::getGMT('Y-m-d H:i:s'));
 			
